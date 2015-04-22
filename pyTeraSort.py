@@ -7,10 +7,10 @@ from datetime import datetime
 
 def main(argList):	
 	# Process command line args
-	if len(argList) >= 1:
+	if len(argList) >= 2:
 		pass
 	else:
-		print ("no input file specified or prefix")
+		print ("no input file specified and or output")
 		usage()
 		sys.exit()
 		
@@ -31,10 +31,10 @@ def main(argList):
 	
 	irdd = sc.textFile(argList[0], inp).map(lambda x: (x[0:10],x[10:]))
 	ordd = irdd.sortByKey(True, onp)
-	ordd.saveAsTextFile('output')
+	ordd.saveAsTextFile(argList[1]+'/output')
 	
 def usage():
-		print 'pyTeraSort.py <input file or directory> -options'
+		print 'pyTeraSort.py <input file or directory> <output directory> -options'
 		print '-inputPartitions <int> number of input partitions'
 		print '-outputPartitions <int> number of output partitions'
 		return
