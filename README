@@ -1,0 +1,13 @@
+directory contains 3 files
+	1) README --> this file
+	2) pyTeraSort.py --> python spark implementation of terasort 
+	3) pyTeraClean.py --> takes the out put and properly formats for passing the official C valSort
+
+Usage
+	pyTeraSort.py
+		pyTeraSort.py <input file or directory> -options
+		-inputPartitions <int> number of input partitions
+		-outputPartitions <int> number of output partitions
+
+	pyTeraClean.py
+		pyTeraSort.py <input file or prefix>
