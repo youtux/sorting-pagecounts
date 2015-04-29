@@ -26,13 +26,14 @@ def main(argList):
 		
 	
 	# Create Spark Contex for NONE local MODE
-	sc = SparkContext(conf=SparkConf()) 
+	sc = SparkContext() 
 	
 	
-	irdd = sc.textFile(argList[0], inp).map(lambda x: (x[0:10],x[10:]))
-	ordd = irdd.sortByKey(True, onp)
+	irdd = sc.textFile(argList[0], inp, use_unicode=True).map(lambda x: (x[0:10],x[10:]))
+	ordd = irdd.sortByKey(True, onp).map(lambda x: (x[0] + x[1].strip('\n')) + '\r')
 	ordd.saveAsTextFile(argList[1]+'/output')
-	
+#	ordd.saveAsHadoopFile(argList[1]+'/output')
+
 def usage():
 		print 'pyTeraSort.py <input file or directory> <output directory> -options'
 		print '-inputPartitions <int> number of input partitions'
