@@ -6,6 +6,7 @@ valsort official test. This program must be called with spark-submit
 directory contains 3 files
 	1) README --> this file
 	2) pyTeraSort.py --> python spark implementation of terasort 
+	3) teraval.py --> python terasort validation
 
 Usage
 	pyTeraSort.py
