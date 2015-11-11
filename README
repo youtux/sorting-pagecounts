@@ -1,18 +1,5 @@
-This package is a version of the terasort written in python for pyspark. The
-output of the program produces valid sorted output sufficent to pass the
-valsort official test. This program must be called with spark-submit
+This Spark job will sort wikimedia pagecounts files by
+(project, article, timestamp).
 
-
-directory contains 3 files
-	1) README --> this file
-	2) pyTeraSort.py --> python spark implementation of terasort 
-	3) teraval.py --> python terasort validation
-
-Usage
-	pyTeraSort.py
-		pyTeraSort.py <input file or directory> <output dir> -options
-		-inputPartitions <int> number of input partitions
-		-outputPartitions <int> number of output partitions
-		example command line 
-			spark-submit --master local[16] pyTeraSort.py foo.txt out_dir -inputPartition 64 -outputPartition 64
-
+Usage:
+spark-submit sort.py [options]
