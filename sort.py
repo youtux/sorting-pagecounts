@@ -2,7 +2,6 @@ from __future__ import print_function
 import sys
 import os
 import datetime
-import glob
 import argparse
 
 from pyspark import SparkContext
@@ -133,9 +132,8 @@ def main():
 
     sorted_rdd_text = sorted_rdd.map(line_tuple_to_text)
 
-    output_file = os.path.join(args.output_dir, 'output.gz')
     sorted_rdd_text.saveAsTextFile(
-        output_file,
+        args.output_file,
         compressionCodecClass='org.apache.hadoop.io.compress.GzipCodec',
     )
 
