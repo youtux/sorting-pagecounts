@@ -3,41 +3,85 @@ import sys
 import os
 import datetime
 import glob
+import argparse
 
 from pyspark import SparkContext
 # from pyspark.conf import SparkConf
 
-USAGE = '''\
-pyTeraSort.py <input directory> <output directory> [options]
-
-Options:
--inputPartitions  <int> number of input partitions
--outputPartitions <int> number of output partitions'''
+BASENAME_TIMESTAMP_PATTERN = 'pagecounts-%Y%m%d-%H%M%S.gz'
 
 
 def input_mapper(filename):
     basename = os.path.basename(filename)
     timestamp = datetime.datetime.strptime(
-        basename, 'pagecounts-%Y%m%d-%H%M%S.gz')
+        basename, BASENAME_TIMESTAMP_PATTERN)
 
     def line_mapper(line):
-        # line_unicode = line.decode(encoding='ISO-8859-2')
-        line_unicode = line
-        project, page, counts, _ = line_unicode.split(' ')
+        project, page, counts, _ = line.split(u' ')
 
         counts = int(counts)
         project = project.lower()
-        # print(project, page, counts)
+
         return (timestamp, project, page, counts)
 
     return line_mapper
 
 
-def input_line_filter(line):
-    # print('input_line_filter: line: ', line)
-    timestamp, project, page, counts = line
+def input_line_filter_provider(project_list):
+    def line_filter(line):
+        timestamp, project, page, counts = line
 
-    return project.lower() == u'en'
+        return project in project_list
+
+    return line_filter
+
+
+def line_sorting_key(line):
+    timestamp, project, page, counts = line
+    return (project, page, timestamp)
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description='Sort wikimedia pagecounts by (project, article)',
+    )
+    parser.add_argument(
+        'input_files',
+        metavar='INPUT_FILE',
+        nargs='+',
+        help='''\
+Input file in gzip format. Basename must match the pattern:
+    {pattern}'''.format(pattern=BASENAME_TIMESTAMP_PATTERN),
+    )
+    parser.add_argument(
+        'output_file',
+        metavar='OUTPUT_FILE',
+        help="Output file (it will be gzip'd)",
+    )
+    parser.add_argument(
+        '--input-partitions',
+        type=int,
+        required=False,
+        help='''\
+Number of input partitions [default: SparkContext.defaultMinPartitions]''',
+    )
+    parser.add_argument(
+        '--output-partitions',
+        type=int,
+        required=False,
+        help='Number of output partitions [default: input-partitions]',
+    )
+    parser.add_argument(
+        '--projects', '-p',
+        type=unicode,
+        default=None,
+        required=False,
+        help='Comma-separated list of projects to keep. Leave empty for all.',
+    )
+
+    args = parser.parse_args()
+
+    return args
 
 
 def line_tuple_to_text(line):
@@ -53,50 +97,47 @@ def line_tuple_to_text(line):
     return output_line
 
 
-def main(args):
-    args = sys.argv[1:]
-    # Process command line args
-    if len(args) >= 2:
-        pass
-    else:
-        print("no input file specified and or output")
-        print(USAGE)
-        sys.exit()
+def main():
+    args = parse_arguments()
+    print(args)
 
-    files = glob.glob(args[0] + '/*.gz')
-    print(files)
+    if os.path.exists(args.output_file):
+        print('Output file already exists:', args.output_file)
+        sys.exit(1)
 
-    # Create Spark Contex for NONE local MODE
     sc = SparkContext()
-    if '-inputPartition' in args:
-        inp = int(args[args.index('-inputPartition') + 1])
-    else:
-        inp = sc.defaultMinPartitions
 
-    if '-outputPartition' in args:
-        onp = int(args[args.index('-outputPartition') + 1])
-    else:
-        onp = inp
+    input_partitions = args.input_partitions or sc.defaultMinPartitions
+    output_partitions = args.output_partitions or input_partitions
 
-    rdds = [sc.textFile(
+    rdds_list = [sc.textFile(
         name=input_file,
-        minPartitions=inp,
+        minPartitions=input_partitions,
         use_unicode=True,
-        ).map(input_mapper(input_file)) for input_file in files]
+        ).map(input_mapper(input_file)) for input_file in args.input_files]
 
-    rdd = sc.union(rdds)
+    union_rdd = sc.union(rdds_list)
 
-    filtered_rdd = rdd.filter(input_line_filter)
+    if args.projects:
+        projects = args.projects.split(u',')
+        line_filter = input_line_filter_provider(projects)
+        filtered_rdd = union_rdd.filter(line_filter)
+    else:
+        filtered_rdd = union_rdd
 
-    ordd = filtered_rdd.sortBy(
-        keyfunc=lambda t: (t[1], t[2]),
+    sorted_rdd = filtered_rdd.sortBy(
+        keyfunc=line_sorting_key,
         ascending=True,
-        numPartitions=onp,
+        numPartitions=output_partitions,
         )
 
-    mapped_ordd = ordd.map(line_tuple_to_text)
-    mapped_ordd.saveAsTextFile(args[1] + '/output.gz',
-        compressionCodecClass='org.apache.hadoop.io.compress.GzipCodec')
+    sorted_rdd_text = sorted_rdd.map(line_tuple_to_text)
+
+    output_file = os.path.join(args.output_dir, 'output.gz')
+    sorted_rdd_text.saveAsTextFile(
+        output_file,
+        compressionCodecClass='org.apache.hadoop.io.compress.GzipCodec',
+    )
 
 if __name__ == '__main__':
     main()
