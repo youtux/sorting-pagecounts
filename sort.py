@@ -78,22 +78,18 @@ Number of input partitions [default: SparkContext.defaultMinPartitions]''',
         help='Comma-separated list of projects to keep. Leave empty for all.',
     )
 
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 def line_tuple_to_text(line):
     timestamp, project, page, counts = line
 
-    output_line = u'{project} {page} {timestamp} {counts}\n'.format(
+    return u'{project} {page} {timestamp} {counts}\n'.format(
         project=project,
         page=page,
         timestamp=timestamp.strftime('%Y%m%d-%H%M%S'),
         counts=counts,
     ).encode(encoding='utf-8')
-
-    return output_line
 
 
 def main():
